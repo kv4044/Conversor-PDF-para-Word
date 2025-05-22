@@ -5,6 +5,7 @@ from pdf2docx import Converter
 from docx2pdf import convert
 from reportlab.pdfgen import canvas
 from PIL import Image
+import threading
 
 # Configuração inicial
 ctk.set_appearance_mode("Dark")  # ou "Light", "System"
@@ -16,10 +17,11 @@ TXT_PDF = "TXT  →  PDF"
 JPG_PDF = "JPG  →  PDF"
 
 label_de_sucesso = {}
+barras_de_progresso = {}
 
 app = ctk.CTk()
 app.title("Conversor de arquivos")
-app.geometry("500x300")
+app.geometry("500x350")
 
 tabview = CTkTabview(master=app)
 tabview.pack(pady=20, fill="both", expand=True)
@@ -37,15 +39,28 @@ def converter_pdf_para_docx():
         save_location = filedialog.asksaveasfilename(defaultextension=".docx", filetypes=[("Word files", "*.docx")])
         if not save_location:
             return
+
         label_de_sucesso[PDF_DOCX].configure(text="Convertendo... Aguarde")
-        try:
-            cv = Converter(file_path)
-            cv.convert(save_location, start=0, end=None)
-            cv.close()
-            label_de_sucesso[PDF_DOCX].configure(text="Conversão concluída com sucesso!")
-        except Exception as e:
-            messagebox.showerror("Erro", f"Ocorreu um erro:\n{str(e)}")
-            label_de_sucesso[PDF_DOCX].configure(text="")
+        barras_de_progresso[PDF_DOCX].pack(pady=15)
+        barras_de_progresso[PDF_DOCX].start()
+
+        def executar_conversao_PDF_DOCX():
+            try:
+                cv = Converter(file_path)
+                cv.convert(save_location, start=0, end=None)
+                cv.close()
+
+                label_de_sucesso[PDF_DOCX].configure(text="Conversão concluída com sucesso!")
+
+            except Exception as e:
+                messagebox.showerror("Erro", f"Ocorreu um erro:\n{str(e)}")
+                label_de_sucesso[PDF_DOCX].configure(text="")
+            finally:
+                barras_de_progresso[PDF_DOCX].stop()
+                barras_de_progresso[PDF_DOCX].pack_forget()
+
+        thread = threading.Thread(target=executar_conversao_PDF_DOCX)
+        thread.start()
 
 
 def converter_docx_para_pdf():
@@ -54,13 +69,23 @@ def converter_docx_para_pdf():
         save_location = filedialog.asksaveasfilename(defaultextension=".pdf", filetypes=[("Arquivos PDF", "*.pdf")])
         if not save_location:
             return
+
         label_de_sucesso[DOCX_PDF].configure(text="Convertendo... Aguarde")
-        try:
-            convert(file_path, save_location)
-            label_de_sucesso[DOCX_PDF].configure(text="Conversão concluída com sucesso!")
-        except Exception as e:
-            messagebox.showerror("Erro", f"Ocorreu um erro:\n{str(e)}")
-            label_de_sucesso[DOCX_PDF].configure(text="")
+        barras_de_progresso[DOCX_PDF].pack(pady=15)
+        barras_de_progresso[DOCX_PDF].start()
+
+        def executar_conversao_DOCX_PDF():
+            try:
+                convert(file_path, save_location)
+                label_de_sucesso[DOCX_PDF].configure(text="Conversão concluída com sucesso!")
+            except Exception as e:
+                messagebox.showerror("Erro", f"Ocorreu um erro:\n{str(e)}")
+                label_de_sucesso[DOCX_PDF].configure(text="")
+            finally:
+                barras_de_progresso[DOCX_PDF].stop()
+                barras_de_progresso[DOCX_PDF].pack_forget()
+        thread = threading.Thread(target=executar_conversao_DOCX_PDF)
+        thread.start()
 
 
 def converter_txt_para_pdf():
@@ -69,25 +94,35 @@ def converter_txt_para_pdf():
         save_location = filedialog.asksaveasfilename(defaultextension=".pdf", filetypes=[("ARquivo PDF", "*.pdf")])
         if not save_location:
             return
+
         label_de_sucesso[TXT_PDF].configure(text="Convertendo... Aguarde!")
-        try:
-            c = canvas.Canvas(save_location)
-            x = 40
-            y = 800
+        barras_de_progresso[TXT_PDF].pack(pady=15)
+        barras_de_progresso[TXT_PDF].start()
 
-            with open(file_path, "r", encoding="utf-8") as f:
-                for linha in f:
-                    c.drawString(x, y, linha.strip())
-                    y -= 15
-                    if y < 40:
-                        c.showPage()
-                        y = 800
+        def executar_conversao_TXT_PDF():
+            try:
+                c = canvas.Canvas(save_location)
+                x = 40
+                y = 800
 
-            c.save()
-            label_de_sucesso[TXT_PDF].configure(text="Conversão concluída com sucesso!")
-        except Exception as e:
-            messagebox.showerror("Erro", f"Ocorreu um erro:\n{str(e)}")
-            label_de_sucesso[DOCX_PDF].configure(text="")
+                with open(file_path, "r", encoding="utf-8") as f:
+                    for linha in f:
+                        c.drawString(x, y, linha.strip())
+                        y -= 15
+                        if y < 40:
+                            c.showPage()
+                            y = 800
+
+                c.save()
+                label_de_sucesso[TXT_PDF].configure(text="Conversão concluída com sucesso!")
+            except Exception as e:
+                messagebox.showerror("Erro", f"Ocorreu um erro:\n{str(e)}")
+                label_de_sucesso[DOCX_PDF].configure(text="")
+            finally:
+                barras_de_progresso[TXT_PDF].stop()
+                barras_de_progresso[TXT_PDF].pack_forget()
+        thread = threading.Thread(target=executar_conversao_TXT_PDF)
+        thread.start()
 
 
 def converter_jpg_para_pdf():
@@ -96,15 +131,25 @@ def converter_jpg_para_pdf():
         save_location = filedialog.asksaveasfilename(defaultextension=".pdf", filetypes=[("ARquivo PDF", "*.pdf")])
         if not save_location:
             return
-        label_de_sucesso[TXT_PDF].configure(text="Convertendo... Aguarde!")
-        try:
-            img = Image.open(file_path)
-            img_rgb = img.convert("RGB")
-            img_rgb.save(save_location, "PDF")
-            label_de_sucesso[JPG_PDF].configure(text="Conversão concluída com sucesso!")
-        except Exception as e:
-            messagebox.showerror("Erro", f"Ocorreu um erro:\n{str(e)}")
-            label_de_sucesso[DOCX_PDF].configure(text="")
+
+        label_de_sucesso[JPG_PDF].configure(text="Convertendo... Aguarde!")
+        barras_de_progresso[JPG_PDF].pack(pady=15)
+        barras_de_progresso[JPG_PDF].start()
+
+        def executar_conversao_JPG_PDF():
+            try:
+                img = Image.open(file_path)
+                img_rgb = img.convert("RGB")
+                img_rgb.save(save_location, "PDF")
+                label_de_sucesso[JPG_PDF].configure(text="Conversão concluída com sucesso!")
+            except Exception as e:
+                messagebox.showerror("Erro", f"Ocorreu um erro:\n{str(e)}")
+                label_de_sucesso[DOCX_PDF].configure(text="")
+            finally:
+                barras_de_progresso[JPG_PDF].stop()
+                barras_de_progresso[JPG_PDF].pack_forget()
+        thread = threading.Thread(target=executar_conversao_JPG_PDF)
+        thread.start()
 
 
 def criar_buttom_label(tab, text_button, text_label, comando):
@@ -132,6 +177,19 @@ def criar_buttom_label(tab, text_button, text_label, comando):
 
     # Guardar no dicionário para usar depois
     label_de_sucesso[tab] = label
+
+    progressbar = ctk.CTkProgressBar(master=aba,
+                                     width=200,
+                                     height=10,
+                                     progress_color="#45a049",
+                                     corner_radius=8,
+                                     indeterminate_speed=0.1)
+    progressbar.pack(pady=15)
+    progressbar.pack_forget()
+    progressbar.set(0)
+
+    # Guarda no dicionário para usar depois
+    barras_de_progresso[tab] = progressbar
 
 
 criar_buttom_label(PDF_DOCX, "Selecionar PDF", "PDF para DOCX", converter_pdf_para_docx)

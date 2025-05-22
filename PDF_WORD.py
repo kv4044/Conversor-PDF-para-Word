@@ -2,7 +2,7 @@ import customtkinter as ctk
 from customtkinter import CTkTabview
 from tkinter import filedialog, messagebox
 from pdf2docx import Converter
-from docx2pdf import convert
+from docx import Document
 from reportlab.pdfgen import canvas
 from PIL import Image
 import threading
@@ -76,7 +76,22 @@ def converter_docx_para_pdf():
 
         def executar_conversao_DOCX_PDF():
             try:
-                convert(file_path, save_location)
+                doc = Document(file_path)
+                c = canvas.Canvas(save_location)
+                width, height = c._pagesize
+                x = 40
+                y = height - 50
+
+                for para in doc.paragraphs:
+                    lines = para.text.split('\n')
+                    for line in lines:
+                        if y < 40:
+                            c.showPage()
+                            y = height - 50
+                        c.drawString(x, y, line)
+                        y -= 15
+
+                c.save()
                 label_de_sucesso[DOCX_PDF].configure(text="Conversão concluída com sucesso!")
             except Exception as e:
                 messagebox.showerror("Erro", f"Ocorreu um erro:\n{str(e)}")

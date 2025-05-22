@@ -4,6 +4,7 @@ from tkinter import filedialog, messagebox
 from pdf2docx import Converter
 from docx2pdf import convert
 from reportlab.pdfgen import canvas
+from PIL import Image
 
 # Configuração inicial
 ctk.set_appearance_mode("Dark")  # ou "Light", "System"
@@ -90,7 +91,20 @@ def converter_txt_para_pdf():
 
 
 def converter_jpg_para_pdf():
-    return
+    file_path = filedialog.askopenfilename(title="Selecione um arquivo JPG", filetypes=[("Arquivo JPG", "*.jpg")])
+    if file_path:
+        save_location = filedialog.asksaveasfilename(defaultextension=".pdf", filetypes=[("ARquivo PDF", "*.pdf")])
+        if not save_location:
+            return
+        label_de_sucesso[TXT_PDF].configure(text="Convertendo... Aguarde!")
+        try:
+            img = Image.open(file_path)
+            img_rgb = img.convert("RGB")
+            img_rgb.save(save_location, "PDF")
+            label_de_sucesso[JPG_PDF].configure(text="Conversão concluída com sucesso!")
+        except Exception as e:
+            messagebox.showerror("Erro", f"Ocorreu um erro:\n{str(e)}")
+            label_de_sucesso[DOCX_PDF].configure(text="")
 
 
 def criar_buttom_label(tab, text_button, text_label, comando):

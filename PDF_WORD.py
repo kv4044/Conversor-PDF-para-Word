@@ -1,4 +1,5 @@
 import customtkinter as ctk
+import pdfplumber
 from customtkinter import CTkTabview
 from tkinter import filedialog, messagebox
 from pdf2docx import Converter
@@ -6,15 +7,19 @@ from docx import Document
 from reportlab.pdfgen import canvas
 from PIL import Image
 import threading
+import pdfplumber
+import pandas as pd
+
 
 # Configuração inicial
-ctk.set_appearance_mode("Dark")  # ou "Light", "System"
+ctk.set_appearance_mode("Light")
 ctk.set_default_color_theme("green")  # cores: blue, green, dark-blue
 
 PDF_DOCX = "PDF  →  DOCX"
 DOCX_PDF = "DOCX  →  PDF"
 TXT_PDF = "TXT  →  PDF"
 JPG_PDF = "JPG  →  PDF"
+PDF_Excel = "PDF → Excel"
 
 label_de_sucesso = {}
 barras_de_progresso = {}
@@ -26,13 +31,56 @@ app.geometry("500x350")
 tabview = CTkTabview(master=app)
 tabview.pack(pady=20, fill="both", expand=True)
 
+tabview.add(PDF_Excel)
 tabview.add(PDF_DOCX)
 tabview.add(DOCX_PDF)
 tabview.add(TXT_PDF)
 tabview.add(JPG_PDF)
 
 
-# Função para converter
+# Funções para converter
+
+def conervter_pdf_para_excel():
+    file_path = filedialog.askopenfilename(title="Selecione um arquivo PDF", filetypes=[("Arquivos PDF", "*.pdf")])
+    if file_path:
+        save_location = filedialog.asksaveasfilename(defaultextension=".xlsx", filetypes=[("Excel files", "*.xlsx")])
+        if not save_location:
+            return
+
+        label_de_sucesso[PDF_Excel].configure(text="Convertendo... Aguarde")
+        barras_de_progresso[PDF_Excel].pack(pady=15)
+        barras_de_progresso[PDF_Excel].start()
+
+        def executar_conversao_PDF_excel():
+            try:
+                all_dataframes = []
+
+                with pdfplumber.open(file_path) as pdf:
+                    for page in pdf.pages:  # loop em cada página do PDF
+                        table = page.extract_table()  # tenta pegar a tabela dessa página
+                        if table:
+                            df = pd.DataFrame(table[1:], columns=table[0])  # cria DataFrame
+                            all_dataframes.append(df)  # guarda na lista
+
+                if all_dataframes:
+                    final_df = pd.concat(all_dataframes, ignore_index=True)  # junta tudo
+                    final_df.to_excel(save_location, index=False)  # salva no Excel
+
+                    label_de_sucesso[PDF_Excel].configure(text="Conversão concluída com sucesso!")
+                else:
+                    label_de_sucesso[PDF_Excel].configure(text="Nenhuma tabela encontrada no PDF.")
+
+            except Exception as e:
+                messagebox.showerror("Erro", f"Ocorreu um erro:\n{str(e)}")
+                label_de_sucesso[PDF_Excel].configure(text="")
+            finally:
+                barras_de_progresso[PDF_Excel].stop()
+                barras_de_progresso[PDF_Excel].pack_forget()
+
+        thread = threading.Thread(target=executar_conversao_PDF_excel)
+        thread.start()
+
+
 def converter_pdf_para_docx():
     file_path = filedialog.askopenfilename(title="Selecione um arquivo PDF", filetypes=[("Arquivos PDF", "*.pdf")])
     if file_path:
@@ -99,6 +147,7 @@ def converter_docx_para_pdf():
             finally:
                 barras_de_progresso[DOCX_PDF].stop()
                 barras_de_progresso[DOCX_PDF].pack_forget()
+
         thread = threading.Thread(target=executar_conversao_DOCX_PDF)
         thread.start()
 
@@ -136,6 +185,7 @@ def converter_txt_para_pdf():
             finally:
                 barras_de_progresso[TXT_PDF].stop()
                 barras_de_progresso[TXT_PDF].pack_forget()
+
         thread = threading.Thread(target=executar_conversao_TXT_PDF)
         thread.start()
 
@@ -163,6 +213,7 @@ def converter_jpg_para_pdf():
             finally:
                 barras_de_progresso[JPG_PDF].stop()
                 barras_de_progresso[JPG_PDF].pack_forget()
+
         thread = threading.Thread(target=executar_conversao_JPG_PDF)
         thread.start()
 
@@ -207,10 +258,16 @@ def criar_buttom_label(tab, text_button, text_label, comando):
     barras_de_progresso[tab] = progressbar
 
 
+mudar_tema = ctk.CTkSwitch(master=app, text="Modo Escuro")
+mudar_tema.configure(command=lambda: ctk.set_appearance_mode("Dark" if mudar_tema.get() else "light"))
+mudar_tema.pack(side="top", anchor="ne", padx=20, pady=10)
+
+criar_buttom_label(PDF_Excel, "Selecionar PDF", "Excel para PDF", conervter_pdf_para_excel)
 criar_buttom_label(PDF_DOCX, "Selecionar PDF", "PDF para DOCX", converter_pdf_para_docx)
 criar_buttom_label(DOCX_PDF, "Selecionar DOCX", "DOCX para PDF", converter_docx_para_pdf)
 criar_buttom_label(TXT_PDF, "Selecionar TXT", "TXT para PDF", converter_txt_para_pdf)
 criar_buttom_label(JPG_PDF, "Selecionar JPG", "JPG para PDF", converter_jpg_para_pdf)
+
 
 # Iniciar app
 app.mainloop()
